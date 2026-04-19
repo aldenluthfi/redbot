@@ -24,8 +24,7 @@ from .services import (
 )
 from .utils import log_interaction
 
-
-RESET_COMMANDS = {"reset", "restart"}
+RESET_COMMANDS = {"reset", "restart", "menu", "kembali"}
 RESET_HINT_MESSAGE = (
     "Kamu sudah 3x salah input. Untuk memulai ulang percakapan, "
     "ketik 'reset' atau 'restart'."
@@ -193,7 +192,13 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
 
         if normalized_message in RESET_COMMANDS:
             reset_preset_user(user)
-            bot_message = "Data kamu sudah direset. Yuk mulai lagi dari awal: Apakah kamu sedang menstruasi sekarang?"
+            bot_message = (
+                "Halo! Selamat datang kembali di *REDBOT*, asisten kesehatan reproduksimu. 👩🏻‍⚕️🩸\n\n"
+                "Ketik angka untuk memilih menu layanan:\n"
+                "1️⃣ QnA Kesehatan\n"
+                "2️⃣ Reminder TTD\n"
+                "3️⃣ Kalender Menstruasi"
+            )
             response_payload = {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
@@ -201,44 +206,41 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
                 "action": "reset",
             }
             log_interaction(
-                user=user,
-                user_id=user_id,
-                mode=InteractionLog.MODE_PRESET,
-                endpoint=endpoint_name,
-                user_message=raw_message,
-                bot_response=bot_message,
-                status=InteractionLog.STATUS_SUCCESS,
-                metadata={
-                    "state": user.preset_state,
-                    "invalid_input_count": user.invalid_input_count,
-                    "action": "reset",
-                },
+                user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET,
+                endpoint=endpoint_name, user_message=raw_message, bot_response=bot_message,
+                status=InteractionLog.STATUS_SUCCESS, metadata={"state": user.preset_state, "action": "reset"}
             )
             return Response(response_payload, status=status.HTTP_200_OK)
 
         if user.preset_state in {PresetState.NOT_STARTED, PresetState.COMPLETED}:
-            user.preset_state = PresetState.AWAITING_MENSTRUATING
-            user.invalid_input_count = 0
-            user.save(update_fields=["preset_state", "invalid_input_count", "updated_at"])
-            bot_message = "Apakah kamu sedang menstruasi sekarang?"
-            log_interaction(
-                user=user,
-                user_id=user_id,
-                mode=InteractionLog.MODE_PRESET,
-                endpoint=endpoint_name,
-                user_message=raw_message,
-                bot_response=bot_message,
-                status=InteractionLog.STATUS_SUCCESS,
-                metadata={"state": user.preset_state},
-            )
-            return Response(
-                {
-                    "mode": "preset_interaction",
-                    "state": user.preset_state,
-                    "response": bot_message,
-                },
-                status=status.HTTP_200_OK,
-            )
+            if normalized_message == "1":
+                bot_message = "Kamu memilih *QnA Kesehatan*. 💬\n\nSilakan tanyakan apa saja seputar menstruasi atau anemia dengan menambahkan awalan *ai:* di awal pesanmu.\n\nContoh: \n*ai: apakah wajar pusing saat haid?*"
+                log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=bot_message)
+                return Response({"mode": "preset_interaction", "state": user.preset_state, "response": bot_message}, status=status.HTTP_200_OK)
+            
+            elif normalized_message == "2":
+                user.preset_state = PresetState.AWAITING_MENSTRUATING
+                user.invalid_input_count = 0
+                user.save(update_fields=["preset_state", "invalid_input_count", "updated_at"])
+                bot_message = "Kamu memilih *Reminder TTD*. 💊\n\nMari kita atur jadwal pengingat minum Tablet Tambah Darah (TTD).\n\nApakah kamu sedang menstruasi sekarang? (Jawab: ya/tidak)"
+                log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=bot_message)
+                return Response({"mode": "preset_interaction", "state": user.preset_state, "response": bot_message}, status=status.HTTP_200_OK)
+
+            elif normalized_message == "3":
+                bot_message = "Kamu memilih *Kalender Menstruasi*. 📅\n\nMohon maaf, fitur ini masih dalam tahap pengembangan. Nantikan update REDBOT segera ya!\n\nKetik *menu* untuk kembali."
+                log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=bot_message)
+                return Response({"mode": "preset_interaction", "state": user.preset_state, "response": bot_message}, status=status.HTTP_200_OK)
+            
+            else:
+                bot_message = (
+                    "Halo! Selamat datang di *REDBOT*, asisten kesehatan reproduksimu. 👩🏻‍⚕️🩸\n\n"
+                    "Ketik angka untuk memilih menu layanan:\n"
+                    "1️⃣ QnA Kesehatan\n"
+                    "2️⃣ Reminder TTD\n"
+                    "3️⃣ Kalender Menstruasi"
+                )
+                log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=bot_message)
+                return Response({"mode": "preset_interaction", "state": user.preset_state, "response": bot_message}, status=status.HTTP_200_OK)
 
         try:
             response_payload = advance_preset_flow(user, raw_message)
@@ -259,24 +261,12 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
             interaction_status = InteractionLog.STATUS_ERROR
 
         log_interaction(
-            user=user,
-            user_id=user_id,
-            mode=InteractionLog.MODE_PRESET,
-            endpoint=endpoint_name,
-            user_message=raw_message,
-            bot_response=response_payload.get("response") or response_payload.get("error", ""),
-            status=interaction_status,
-            metadata={
-                "state": user.preset_state,
-                "invalid_input_count": user.invalid_input_count,
-            },
+            user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name,
+            user_message=raw_message, bot_response=response_payload.get("response") or response_payload.get("error", ""),
+            status=interaction_status, metadata={"state": user.preset_state, "invalid_input_count": user.invalid_input_count}
         )
 
-        http_status = (
-            status.HTTP_400_BAD_REQUEST
-            if interaction_status == InteractionLog.STATUS_ERROR
-            else status.HTTP_200_OK
-        )
+        http_status = status.HTTP_400_BAD_REQUEST if interaction_status == InteractionLog.STATUS_ERROR else status.HTTP_200_OK
         return Response(response_payload, status=http_status)
 
 
