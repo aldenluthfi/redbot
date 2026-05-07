@@ -1,12 +1,17 @@
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
+import json
+import requests
+import os
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import ChatbotUser, InteractionLog, PresetState
 from .serializers import ModeDispatchSerializer, WhatsAppWebhookPayloadSerializer
@@ -31,7 +36,6 @@ RESET_HINT_MESSAGE = (
     "Kamu sudah 3x salah input. Untuk memulai ulang percakapan, "
     "ketik 'reset' atau 'restart'."
 )
-
 
 def reset_preset_user(user: ChatbotUser):
     user.preset_state = PresetState.NOT_STARTED
@@ -510,19 +514,19 @@ class WhatsAppWebhookAPIView(APIView):
         tags=["WhatsApp Webhook"],
     )
     def post(self, request):
-        # expected_token = settings.WHATSAPP_WEBHOOK_TOKEN
-        # provided_header = request.headers.get("Authorization", "")
-        # if expected_token and provided_header != f"Bearer {expected_token}":
-        #     return Response({"error": "Invalid webhook bearer token."}, status=status.HTTP_401_UNAUTHORIZED)
+        # 1. Ambil data dari Fonnte (Bebas dari Meta extract_whatsapp_message)
+        sender = request.data.get("sender")
+        message_text = request.data.get("message")
 
-        try:
-            extracted = extract_whatsapp_message(request.data)
-        except InputValidationError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        # Abaikan jika tidak ada pesan/pengirim yang valid (misal pesan sistem Fonnte)
+        if not sender or not message_text:
+             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
-        mode, normalized_text = parse_webhook_mode_and_message(extracted.get("message", ""))
-        user_id = extracted["user_id"]
+        # 2. Tentukan Mode (AI atau Preset)
+        mode, normalized_text = parse_webhook_mode_and_message(message_text)
+        user_id = str(sender)
 
+        # 3. Masukkan ke Logika Bot Utama Anda
         if mode == InteractionLog.MODE_AI_QNA:
             if not normalized_text:
                 return Response(
@@ -537,11 +541,12 @@ class WhatsAppWebhookAPIView(APIView):
                 endpoint_name=self.endpoint_name,
             )
 
+        # 4. Ambil teks balasan dan kirim ke Fonnte
         teks_balasan = chatbot_response.data.get("response") or chatbot_response.data.get("error")
         if teks_balasan:
             send_whatsapp_message(to_number=user_id, message_text=teks_balasan)
             
-        # 2. Cek dan Kirim File Kalender ICS (Jika Ada)
+        # 5. Cek dan Kirim File Kalender ICS (Jika Ada)
         ics_file = chatbot_response.data.get("ics_file")
         if ics_file:
             send_whatsapp_document(
@@ -551,16 +556,4 @@ class WhatsAppWebhookAPIView(APIView):
                 mime_type=ics_file["content_type"]
             )
             
-        return Response(
-            {
-                "status": "processed",
-                "provider": "whatsapp",
-                "inbound": {
-                    "user_id": user_id,
-                    "mode": mode,
-                    "message": normalized_text,
-                },
-                "chatbot_response": chatbot_response.data,
-            },
-            status=chatbot_response.status_code,
-        )
+        return Response({"status": "processed"}, status=status.HTTP_200_OK)
