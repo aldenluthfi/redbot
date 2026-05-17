@@ -11,7 +11,7 @@ import datetime
 
 from .models import ChatbotUser, InteractionLog, PresetState
 from .serializers import ModeDispatchSerializer, WhatsAppWebhookPayloadSerializer
-from .faq_data import FAQ_CONTENT  # <--- INI IMPORT YANG SEBELUMNYA HILANG
+from .faq_data import FAQ_CONTENT
 from .services import (
     ExternalAIServiceError,
     InputValidationError,
@@ -39,7 +39,6 @@ def reset_preset_user(user: ChatbotUser):
     user.period_end_date = None
     user.has_ttd_pill = None
     user.reminder_hour_24 = None
-    # Reset field baru untuk menu
     user.persona = None
     user.selected_topic = None
     user.save()
@@ -64,7 +63,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Halo! 👋 \n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang anemia. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil🤰\n2. Remaja putri👧"
+            "response": "Halo!\n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang Anemia🩸. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil\n2. Remaja putri"
         }
 
     # 2. STATE: Memilih Persona
@@ -76,20 +75,42 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Halo, Moms!💐\n\nSelamat menjalani masa kehamilan, ya. Masa ini tentu tidak selalu mudah. Oleh karena itu, aku hadir untuk mendampingi dan membantu menemukan informasi yang Moms butuhkan, mulai dari anemia, Tablet Tambah Darah (TTD), Multiple Micronutrient Supplement (MMS), hingga kesehatan kehamilan lainnya.\n\nHari ini mau tahu tentang apa, nih, Moms?\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)💊\n3. Umum📚\n4. Lainnya🔍"
+                "response": "Halo, Moms!\n\nSelamat menjalani masa kehamilan, ya. Masa ini tentu tidak selalu mudah. Oleh karena itu, aku hadir untuk mendampingi dan membantu menemukan informasi yang Moms butuhkan, mulai dari Anemia🩸, Tablet Tambah Darah (TTD), Multiple Micronutrient Supplement (MMS), hingga kesehatan kehamilan lainnya.\n\nHari ini mau tahu tentang apa, nih, Moms?\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)💊\n3. Umum📚\n4. Lainnya🔍"
             }
         elif message == '2':
-            # Sesuai Master Docs, fitur Rematri dinonaktifkan
-            reset_preset_user(user)
+            user.persona = 'remaja_putri'
+            user.preset_state = PresetState.AWAITING_MAIN_MENU
+            user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Maaf, ya, untuk saat ini fitur remaja putri belum bisa diakses.😊🙏"
+                "response": "Halo! Untuk remaja putri, tersedia berbagai fitur menarik. Ketik angka untuk memilih menu layanan:\n1. QnA Kesehatan (FAQ)\n2. Reminder TTD\n3. Kalender Menstruasi"
             }
         else:
             raise InputValidationError("Pilihan tidak valid. Silakan balas dengan angka 1 (Ibu hamil) atau 2 (Remaja putri).")
 
-    # 3. STATE: Memilih Topik FAQ (Ibu Hamil)
+    # 3. STATE: Menu Utama Remaja Putri
+    if user.preset_state == PresetState.AWAITING_MAIN_MENU:
+        if message == '1':
+            user.preset_state = PresetState.AWAITING_TOPIC
+            user.save()
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Pilih topik yang ingin kamu ketahui:\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/MMS\n3. Umum📚\n4. Lainnya🔍"
+            }
+        elif message == '2':
+            user.preset_state = PresetState.AWAITING_MENSTRUATING
+            user.save()
+            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Kamu memilih Reminder TTD. 💊\n\nApakah kamu sedang menstruasi sekarang? (Jawab: ya/tidak)"}
+        elif message == '3':
+            user.preset_state = PresetState.CALENDAR_AWAITING_LAST_PERIOD
+            user.save()
+            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Kamu memilih Kalender Menstruasi. 📅\n\nKapan hari pertama haid terakhir kamu? (format DD/MM/YYYY, contoh: 28/01/2026)"}
+        else:
+            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1, 2, atau 3.")
+
+    # 4. STATE: Memilih Topik FAQ (Bisa untuk Ibu Hamil / Rematri)
     if user.preset_state == PresetState.AWAITING_TOPIC:
         topic_map = {'1': 'anemia', '2': 'ttd', '3': 'umum'}
         if message in topic_map:
@@ -99,8 +120,8 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             user.preset_state = PresetState.AWAITING_FAQ_QUESTION
             user.save()
             
-            # Buat list pertanyaan dinamis
-            text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, Moms!🩸\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
+            sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
+            text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, {sapaan}!\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
             for i, q_item in enumerate(topic_data['questions'], 1):
                 text_response += f"{i}. {q_item['q']}\n"
             
@@ -112,29 +133,32 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         elif message == '4':
             user.preset_state = PresetState.AWAITING_MANUAL_QUESTION
             user.save()
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Silakan tulis pertanyaannya, Moms!"}
+            sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
+            return {"mode": "preset_interaction", "state": user.preset_state, "response": f"Silakan tulis pertanyaannya, {sapaan}!"}
         else:
             raise InputValidationError("Pilihan tidak valid. Silakan ketik angka 1, 2, 3, atau 4.")
 
-    # 4. STATE: Memilih Nomor Pertanyaan FAQ
+    # 5. STATE: Memilih Nomor Pertanyaan FAQ
     if user.preset_state == PresetState.AWAITING_FAQ_QUESTION:
         topic_key = user.selected_topic
         topic_data = FAQ_CONTENT.get(topic_key)
+        sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
         try:
             q_idx = int(message) - 1
             total_q = len(topic_data['questions'])
             
-            # Jika user memilih "lainnya"
             if q_idx == total_q:
                 user.preset_state = PresetState.AWAITING_MANUAL_QUESTION
                 user.save()
-                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Silakan tulis pertanyaannya, Moms!"}
+                return {"mode": "preset_interaction", "state": user.preset_state, "response": f"Silakan tulis pertanyaannya, {sapaan}!"}
             
-            # Jika user memilih "kembali ke menu topik"
             elif q_idx == total_q + 1:
                 user.preset_state = PresetState.AWAITING_TOPIC
                 user.save()
-                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya"}
+                if user.persona == 'ibu_hamil':
+                    return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)💊\n3. Umum📚\n4. Lainnya🔍"}
+                else:
+                    return {"mode": "preset_interaction", "state": user.preset_state, "response": "Pilih topik yang ingin kamu ketahui:\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/MMS\n3. Umum📚\n4. Lainnya🔍"}
             
             if q_idx < 0 or q_idx >= total_q:
                 raise ValueError()
@@ -146,13 +170,14 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction", 
                 "state": user.preset_state, 
-                "response": f"{answer}\n\n---\nGimana, nih, Moms, apakah masih ada pertanyaan lainnya?\n1. Ya✔️\n2. Tidak❌"
+                "response": f"{answer}\n\n---\nGimana, nih, {sapaan}, apakah masih ada pertanyaan lainnya?\n1. Ya\n2. Tidak"
             }
         except (ValueError, TypeError):
             raise InputValidationError("Nomor tidak valid. Silakan ketik angka yang sesuai dengan daftar pertanyaan.")
 
-    # 5. STATE: Ya / Tidak (Bertanya Lagi)
+    # 6. STATE: Ya / Tidak (Bertanya Lagi)
     if user.preset_state == PresetState.AWAITING_ASK_MORE:
+        sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
         if message == '1':
             user.preset_state = PresetState.AWAITING_SAME_OR_OTHER_TOPIC
             user.save()
@@ -160,23 +185,25 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction", 
                 "state": user.preset_state, 
-                "response": f"Apakah pertanyaannya masih seputar {topic_title} atau ingin membahas topik lainnya, Moms?\n1. Masih seputar {topic_title}🩸\n2. Topik lainnya📚"
+                "response": f"Apakah pertanyaannya masih seputar {topic_title} atau ingin membahas topik lainnya, {sapaan}?\n1. Masih seputar {topic_title}\n2. Topik lainnya"
             }
         elif message == '2':
+            pesan_tutup = "Terima kasih sudah menggunakan REDBOT, Moms! Semoga informasi yang diberikan dapat membantu, ya. Sehat selalu Moms, baby, dan keluarga. Kalau butuh informasi lagi, aku siap membantu kapan saja.\n\nSampai jumpa lagi!👋" if user.persona == 'ibu_hamil' else "Terima kasih sudah menggunakan REDBOT! Semoga informasi yang diberikan bermanfaat ya. Kalau butuh informasi lagi, aku siap membantu kapan saja.\n\nSampai jumpa lagi!👋"
             reset_preset_user(user)
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Terima kasih sudah menggunakan REDBOT, Moms!💝 \n\n Semoga informasi yang diberikan dapat membantu, ya. Sehat selalu Moms, baby, dan keluarga. Kalau butuh informasi lagi, aku siap membantu kapan saja.\n\nSampai jumpa lagi!👋"}
+            return {"mode": "preset_interaction", "state": user.preset_state, "response": pesan_tutup}
         else:
             raise InputValidationError("Pilihan tidak valid. Ketik 1 untuk Ya, atau 2 untuk Tidak.")
 
-    # 6. STATE: Masih Topik Sama / Topik Lainnya
+    # 7. STATE: Masih Topik Sama / Topik Lainnya
     if user.preset_state == PresetState.AWAITING_SAME_OR_OTHER_TOPIC:
         if message == '1':
             topic_key = user.selected_topic
             topic_data = FAQ_CONTENT.get(topic_key)
             user.preset_state = PresetState.AWAITING_FAQ_QUESTION
             user.save()
+            sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
 
-            text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, Moms!\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
+            text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, {sapaan}!\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
             for i, q_item in enumerate(topic_data['questions'], 1):
                 text_response += f"{i}. {q_item['q']}\n"
             
@@ -188,18 +215,89 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         elif message == '2':
             user.preset_state = PresetState.AWAITING_TOPIC
             user.save()
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya"}
+            if user.persona == 'ibu_hamil':
+                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)💊\n3. Umum📚\n4. Lainnya🔍"}
+            else:
+                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Pilih topik yang ingin kamu ketahui:\n1. Anemia🩸\n2. Tablet Tambah Darah (TTD)/MMS\n3. Umum📚\n4. Lainnya🔍"}
         else:
             raise InputValidationError("Pilihan tidak valid. Ketik 1 atau 2.")
 
-    # 7. STATE: Pertanyaan Manual ("Lainnya")
+    # 8. STATE: Pertanyaan Manual ("Lainnya")
     if user.preset_state == PresetState.AWAITING_MANUAL_QUESTION:
+        sapaan = "Moms" if user.persona == 'ibu_hamil' else "Kak"
         reset_preset_user(user)
         return {
             "mode": "preset_interaction", 
             "state": user.preset_state, 
-            "response": "Terima kasih banyak atas pertanyaannya!\n\nPertanyaan tersebut akan aku teruskan untuk dipelajari lebih lanjut, ya. Jawaban akan diberikan dalam kurun waktu maksimal 7 x 24 jam.\n\nMohon ditunggu, Moms!😊🙏 "
+            "response": f"Terima kasih banyak atas pertanyaannya!\n\nPertanyaan tersebut akan aku teruskan untuk dipelajari lebih lanjut, ya. Jawaban akan diberikan dalam kurun waktu maksimal 7 x 24 jam.\n\nMohon ditunggu, {sapaan}😊🙏!"
         }
+
+    # ==============================================================
+    # FLOW LAMA: PENGINGAT TTD & KALENDER (UNTUK REMAJA PUTRI)
+    # ==============================================================
+    if user.preset_state == PresetState.AWAITING_MENSTRUATING:
+        answer = normalize_yes_no(message)
+        if answer is None:
+            raise InputValidationError("Jawaban tidak valid. Balas dengan yes/no atau ya/tidak.")
+
+        user.is_currently_menstruating = answer
+        if answer:
+            reset_preset_user(user)
+            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Baik, silakan mulai minum TTD setelah menstruasimu selesai ya. Ketik 'menu' untuk kembali."}
+
+        user.preset_state = PresetState.AWAITING_LAST_PERIOD_DATE
+        user.save()
+        return {"mode": "preset_interaction", "state": user.preset_state, "response": "Kapan hari pertama haid terakhir kamu? (format DD/MM/YYYY, contoh: 28/01/2026)"}
+
+    if user.preset_state == PresetState.AWAITING_LAST_PERIOD_DATE:
+        last_period_start = parse_ddmmyyyy(message)
+        user.last_period_start_date = last_period_start
+        user.preset_state = PresetState.AWAITING_HAS_TTD
+        user.save()
+        return {"mode": "preset_interaction", "state": user.preset_state, "response": "Apakah kamu memiliki TTD sekarang? (Jawab: ya/tidak)"}
+
+    if user.preset_state == PresetState.AWAITING_HAS_TTD:
+        has_ttd = normalize_yes_no(message)
+        if has_ttd is None:
+            raise InputValidationError("Jawaban tidak valid. Balas dengan yes/no atau ya/tidak.")
+        user.has_ttd_pill = has_ttd
+        user.preset_state = PresetState.AWAITING_REMINDER_HOUR
+        user.save()
+        rem_msg = "Siap, Aku akan atur jadwal minum TTD-mu, mau diingatkan jam berapa? (format angka 24 jam, contoh: 16 atau 8 atau 20)"
+        resp = rem_msg if has_ttd else "Kamu bisa dapatkan TTD di Puskesmas/Posyandu ya! " + rem_msg
+        return {"mode": "preset_interaction", "state": user.preset_state, "response": resp}
+
+    if user.preset_state == PresetState.AWAITING_REMINDER_HOUR:
+        reminder_hour = parse_hour_24(message)
+        user.reminder_hour_24 = reminder_hour
+        ics_payload = generate_ics_payload(user.user_id, reminder_hour)
+        reset_preset_user(user)
+        return {
+            "mode": "preset_interaction",
+            "state": user.preset_state,
+            "response": "Pengingat TTD berhasil dibuat untuk 90 hari ke depan! Silakan buka file kalender (ICS) yang aku kirimkan untuk menyimpannya di HP kamu.\n\nKetik 'menu' untuk kembali ke awal.",
+            "ics_file": {
+                "filename": ics_payload.filename,
+                "content_type": ics_payload.content_type,
+                "content_base64": ics_payload.content_base64,
+            }
+        }
+
+    if user.preset_state == PresetState.CALENDAR_AWAITING_LAST_PERIOD:
+        last_period_start = parse_ddmmyyyy(message) 
+        user.last_period_start_date = last_period_start
+        reset_preset_user(user)
+        next_period_date = last_period_start + datetime.timedelta(days=28)
+        fertile_start = last_period_start + datetime.timedelta(days=12)
+        fertile_end = last_period_start + datetime.timedelta(days=16)
+
+        response_text = (
+            f"📅 *Hasil Kalender Menstruasi*\n\nBerdasarkan haid terakhirmu ({last_period_start.strftime('%d/%m/%Y')}):\n\n"
+            f"🩸 *Perkiraan Haid Berikutnya:* {next_period_date.strftime('%d/%m/%Y')}\n"
+            f"🌸 *Perkiraan Masa Subur:* {fertile_start.strftime('%d/%m/%Y')} - {fertile_end.strftime('%d/%m/%Y')}\n\n"
+            f"_(Catatan: Ini adalah perkiraan kalender dengan asumsi siklus normal 28 hari. Siklus setiap perempuan bisa berbeda-beda.)_\n\nKetik *menu* untuk kembali."
+        )
+        return {"mode": "preset_interaction", "state": user.preset_state, "response": response_text}
 
     # Fallback
     reset_preset_user(user)
@@ -212,14 +310,12 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
     with transaction.atomic():
         user, _ = ChatbotUser.objects.get_or_create(user_id=user_id)
 
-        # 1. Cek apakah user mengetik perintah reset/sapaan awal
         if normalized_message in RESET_COMMANDS:
             reset_preset_user(user)
             response_payload = advance_preset_flow(user, "")
             log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=response_payload.get("response", ""))
             return Response(response_payload, status=status.HTTP_200_OK)
 
-        # 2. Proses flow normal berdasarkan state
         try:
             response_payload = advance_preset_flow(user, raw_message)
             if user.invalid_input_count != 0:
