@@ -11,6 +11,7 @@ class PresetState(models.TextChoices):
     AWAITING_ASK_MORE = "awaiting_ask_more", "Awaiting Ask More Decision"
     AWAITING_TOPIC_RESELECT = "awaiting_topic_reselect", "Awaiting Topic Reselection"
     AWAITING_MANUAL_QUESTION = "awaiting_manual_question", "Awaiting Manual Question"
+    AWAITING_SAME_OR_OTHER_TOPIC = "awaiting_same_or_other_topic", "Awaiting Same or Other Topic"
     
     # State Lama (untuk fitur Remaja Putri)
     AWAITING_MENSTRUATING = "awaiting_menstruating", "Awaiting Menstruating Answer"
