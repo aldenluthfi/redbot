@@ -232,9 +232,6 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             "response": f"Terima kasih banyak atas pertanyaannya!\n\nPertanyaan tersebut akan aku teruskan untuk dipelajari lebih lanjut, ya. Jawaban akan diberikan dalam kurun waktu maksimal 7 x 24 jam.\n\nMohon ditunggu, {sapaan}😊🙏!"
         }
 
-    # ==============================================================
-    # FLOW LAMA: PENGINGAT TTD & KALENDER (UNTUK REMAJA PUTRI)
-    # ==============================================================
     if user.preset_state == PresetState.AWAITING_MENSTRUATING:
         answer = normalize_yes_no(message)
         if answer is None:
@@ -270,17 +267,13 @@ def advance_preset_flow(user: ChatbotUser, message: str):
     if user.preset_state == PresetState.AWAITING_REMINDER_HOUR:
         reminder_hour = parse_hour_24(message)
         user.reminder_hour_24 = reminder_hour
-        ics_payload = generate_ics_payload(user.user_id, reminder_hour)
+        download_link = f"https://redprojectindonesia.my.id/api/chatbot/calendar/?user_id={user.user_id}&hour={reminder_hour}"
+        
         reset_preset_user(user)
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Pengingat TTD berhasil dibuat untuk 90 hari ke depan! Silakan buka file kalender (ICS) yang aku kirimkan untuk menyimpannya di HP kamu.\n\nKetik 'menu' untuk kembali ke awal.",
-            "ics_file": {
-                "filename": ics_payload.filename,
-                "content_type": ics_payload.content_type,
-                "content_base64": ics_payload.content_base64,
-            }
+            "response": f"Pengingat TTD berhasil dibuat untuk 90 hari ke depan! 📅\n\nSilakan klik link di bawah ini untuk mengunduh dan menyimpan jadwal minum TTD ke kalender HP kamu:\n{download_link}\n\nKetik 'menu' untuk kembali ke awal."
         }
 
     if user.preset_state == PresetState.CALENDAR_AWAITING_LAST_PERIOD:
@@ -398,3 +391,29 @@ class WhatsAppWebhookAPIView(APIView):
             send_whatsapp_document(to_number=user_id, filename=ics_file["filename"], content_base64=ics_file["content_base64"], mime_type=ics_file["content_type"])
             
         return Response({"status": "processed"}, status=status.HTTP_200_OK)
+    
+class DownloadICSAPIView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "chatbot_general"
+
+    def get(self, request):
+        user_id = request.query_params.get("user_id")
+        hour = request.query_params.get("hour")
+        
+        if not user_id or not hour:
+            return HttpResponse("Parameter user_id dan hour tidak lengkap.", status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            hour = int(hour)
+            ics_payload = generate_ics_payload(user_id, hour)
+            
+            import base64
+            file_bytes = base64.b64decode(ics_payload.content_base64)
+            
+            response = HttpResponse(file_bytes, content_type=ics_payload.content_type)
+            response['Content-Disposition'] = f'attachment; filename="{ics_payload.filename}"'
+            return response
+        except Exception as e:
+            return HttpResponse(f"Gagal memproses kalender: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
