@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+:root {
+  --red-primary: #dc2626;
+  --red-dark: #991b1b;
+  --red-light: #fef2f2;
+  --warm-bg: #0f0f0f;
+  --warm-text: #fafafa;
+}
+
+body {
+  @apply bg-[#0f0f0f] text-[#fafafa] antialiased;
+}
+
+html {
+  scroll-behavior: smooth;
+}
