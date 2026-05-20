@@ -13,13 +13,16 @@ class PresetState(models.TextChoices):
     AWAITING_MANUAL_QUESTION = "awaiting_manual_question", "Awaiting Manual Question"
     AWAITING_SAME_OR_OTHER_TOPIC = "awaiting_same_or_other_topic", "Awaiting Same or Other Topic"
     
-    # State Lama (untuk fitur Remaja Putri)
     AWAITING_MENSTRUATING = "awaiting_menstruating", "Awaiting Menstruating Answer"
     AWAITING_LAST_PERIOD_DATE = "awaiting_last_period_date", "Awaiting Last Period Date"
     AWAITING_HAS_TTD = "awaiting_has_ttd", "Awaiting Has TTD Answer"
+    AWAITING_GET_TTD = "awaiting_get_ttd", "Awaiting Get TTD from UKS"  # <--- BARIS BARU INI
     AWAITING_REMINDER_HOUR = "awaiting_reminder_hour", "Awaiting Reminder Hour"
     COMPLETED = "completed", "Completed"
-    CALENDAR_AWAITING_LAST_PERIOD = "calendar_awaiting_last_period", "Calendar Awaiting Last Period Date"
+    CALENDAR_AWAITING_LAST_PERIOD = "calendar_awaiting_last_period", "Calendar Awaiting Last Period"
+
+    AWAITING_REMATRI_AI_PROMPT = "awaiting_rematri_ai_prompt", "Awaiting Rematri AI Prompt"
+    AWAITING_REMATRI_AI_MORE = "awaiting_rematri_ai_more", "Awaiting Rematri AI More"
 
 class ChatbotUser(models.Model):
     user_id = models.CharField(max_length=64, unique=True)
