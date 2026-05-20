@@ -63,7 +63,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Halo!\n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang anemia. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil\n2. Remaja putri"
+            "response": "Halo!\n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang anemia. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil🤰\n2. Remaja putri👧"
         }
 
     # 2. STATE: Memilih Persona
@@ -84,10 +84,10 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Hai, Girls!\n\nHari ini mau tanya-tanya tentang kesehatan atau mau diingetin buat minum Tablet Tambah Darah (TTD), nih?\n1. QnA Kesehatan\n2. Reminder Tablet Tambah Darah (TTD)"
+                "response": "Hai, Girls! 😆\n\nHari ini mau tanya-tanya tentang kesehatan atau mau diingetin buat minum Tablet Tambah Darah (TTD), nih?\n1. QnA Kesehatan\n2. Reminder Tablet Tambah Darah (TTD)"
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Silakan balas dengan angka 1 (Ibu hamil) or 2 (Remaja putri).")
+            raise InputValidationError("Pilihan tidak valid. Silakan balas dengan angka 1 (Ibu hamil🤰) or 2 (Remaja putri👧).")
 
     # 3. STATE: Menu Utama Remaja Putri
     if user.preset_state == PresetState.AWAITING_MAIN_MENU:
@@ -105,7 +105,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Yay, kamu memilih fitur reminder TTD!\n\nKamu tahu nggak, sih, kalo sering capek, pusing, atau susah fokus bisa jadi salah satu gejala anemia?!\nTapi, jangan khawatir. REDBOT akan mengingatkan kamu secara rutin untuk minum TTD agar terhindar dari anemia!\n\nSebelum pasang pengingat, kamu lagi menstruasi atau nggak, nih?\n1. Lagi menstruasi\n2. Nggak lagi menstruasi"
+                "response": "Yay, kamu memilih fitur reminder TTD! 😆\n\nKamu tahu nggak, sih, kalo sering capek, pusing, atau susah fokus bisa jadi salah satu gejala anemia?! 😱\nTapi, jangan khawatir. REDBOT akan mengingatkan kamu secara rutin untuk minum TTD agar terhindar dari anemia!\n\nSebelum pasang pengingat, kamu lagi menstruasi atau nggak, nih?\n1. Lagi menstruasi\n2. Nggak lagi menstruasi"
             }
         else:
             raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
@@ -146,7 +146,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Terima kasih telah mengakses REDBOT, ya!\n\nSee you, girls!"
+                "response": "Terima kasih telah mengakses REDBOT, ya!\n\nSee you, girls! ❤️"
             }
         else:
             raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
@@ -273,7 +273,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Okay, terima kasih atas jawabannya!\n\nApakah kamu sudah punya TTD?\n1. Punya\n2. Nggak punya"
+            "response": "Okay, terima kasih atas jawabannya!\n\nApakah kamu sudah punya TTD?\n1. Punya 👍\n2. Nggak punya 🙁"
         }
 
     if user.preset_state == PresetState.AWAITING_HAS_TTD:
@@ -338,7 +338,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             "Silakan klik tautan di bawah ini untuk mengunduh dan menyimpan jadwal minum TTD-nya langsung ke kalender HP kamu:\n"
             f"{download_link}\n\n"
             "Jangan lupa diminum, ya! Aku pantau, lo!\n"
-            "Terima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\n"
+            "Terima kasih sudah menggunakan REDBOT, ya, Girls! See you! ❤️\n\n"
             "Ketik 'menu' untuk kembali ke menu pilihan awal."
         )
         reset_preset_user(user)
