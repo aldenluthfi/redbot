@@ -330,6 +330,8 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1, 2, atau 3.")
             
         user.reminder_hour_24 = reminder_hour
+        user.reminder_start_date = datetime.date.today() # BARU: Mencatat hari pertama
+        
         is_daily_str = str(user.is_currently_menstruating).lower()
         download_link = f"https://redprojectindonesia.my.id/api/chatbot/calendar/?user_id={user.user_id}&hour={reminder_hour}&is_daily={is_daily_str}"
         
@@ -341,8 +343,46 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             "Terima kasih sudah menggunakan REDBOT, ya, Girls! See you! ❤️\n\n"
             "Ketik 'menu' untuk kembali ke menu pilihan awal."
         )
-        reset_preset_user(user)
+        
+        # Perhatikan: Kita tidak langsung me-reset user jika dia menstruasi, 
+        # karena kita butuh user.reminder_start_date tetap tersimpan.
+        user.preset_state = PresetState.NOT_STARTED
+        user.save()
         return {"mode": "preset_interaction", "state": user.preset_state, "response": wording}
+
+    # ==============================================================
+    # FLOW BARU: JAWABAN FOLLOW-UP HARI KE-7
+    # ==============================================================
+    if user.preset_state == PresetState.AWAITING_FOLLOWUP_MENSTRUATING:
+        if message == '1': # Masih Haid
+            # Berarti lanjut haid, tidak perlu link ICS baru karena HP-nya masih bunyi tiap hari
+            user.preset_state = PresetState.NOT_STARTED
+            # Kita set ulang hari pertamanya agar 7 hari kemudian ditanya lagi (opsional)
+            user.reminder_start_date = datetime.date.today() 
+            user.save()
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Okay, terima kasih atas konfirmasinya!\n\nKan, kamu masih menstruasi, jadi kalender HP kamu akan tetap mengingatkan setiap hari untuk minum TTD, ya!\n\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal."
+            }
+        elif message == '2': # Sudah Selesai Haid
+            user.is_currently_menstruating = False
+            user.preset_state = PresetState.NOT_STARTED
+            # Selesai haid, tidak usah difollow up 7 hari lagi
+            user.reminder_start_date = None
+            user.save()
+            
+            # Buatkan Link Kalender Mingguan Baru
+            reminder_hour = user.reminder_hour_24 or 20
+            download_link = f"https://redprojectindonesia.my.id/api/chatbot/calendar/?user_id={user.user_id}&hour={reminder_hour}&is_daily=false"
+            
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Okay, terima kasih atas konfirmasinya!\n\nKarena kamu sudah selesai menstruasi, maka aku akan set ulang pengingatnya menjadi seminggu sekali, ya, dimulai dari hari ini!\n\nSilakan klik tautan di bawah ini untuk memperbarui jadwal minum TTD-nya langsung ke kalender HP kamu:\n" + download_link + "\n\nJangan lupa diminum, ya! Aku pantau, lo!\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal."
+            }
+        else:
+            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 (Masih haid) atau 2 (Sudah selesai).")
 
     # Fallback
     reset_preset_user(user)
