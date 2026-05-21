@@ -99,7 +99,7 @@ def get_period_end_date(last_period_start):
     return last_period_start + timedelta(days=5)
 
 
-def generate_ics_payload(user_id: str, hour: int):
+def generate_ics_payload(user_id: str, hour: int, is_daily: bool = True):
     now = timezone.now()
     start = now.replace(hour=hour, minute=0, second=0, microsecond=0)
     if start <= now:
@@ -108,6 +108,10 @@ def generate_ics_payload(user_id: str, hour: int):
     dtstamp = now.strftime("%Y%m%dT%H%M%SZ")
     dtstart = start.strftime("%Y%m%dT%H%M%S")
     uid = f"ttd-{user_id}-{int(now.timestamp())}@redbot"
+
+    # Logika Cerdas: Harian (90 hari) ATAU Mingguan (12 minggu)
+    rrule = "RRULE:FREQ=DAILY;COUNT=90" if is_daily else "RRULE:FREQ=WEEKLY;COUNT=12"
+    deskripsi = "Pengingat harian minum TTD selama 90 hari" if is_daily else "Pengingat mingguan minum TTD"
 
     ics_content = "\r\n".join(
         [
@@ -119,9 +123,9 @@ def generate_ics_payload(user_id: str, hour: int):
             f"UID:{uid}",
             f"DTSTAMP:{dtstamp}",
             f"DTSTART;TZID={settings.TIME_ZONE}:{dtstart}",
-            "RRULE:FREQ=DAILY;COUNT=90",
+            rrule,
             "SUMMARY:Minum TTD",
-            "DESCRIPTION:Pengingat harian minum TTD selama 90 hari",
+            f"DESCRIPTION:{deskripsi}",
             "END:VEVENT",
             "END:VCALENDAR",
             "",
