@@ -9,21 +9,43 @@ from openai import OpenAI
 from django.conf import settings
 from django.utils import timezone
 
-
 logger = logging.getLogger(__name__)
 
 
 YES_INPUTS = {"yes", "y", "iya", "ya", "true", "1"}
 NO_INPUTS = {"no", "n", "tidak", "false", "0"}
 
-ANEMIA_MENSTRUASI_SYSTEM_PROMPT = (
-    "Kamu adalah asisten kesehatan reproduksi yang hanya boleh membahas dua topik: "
-    "anemia dan menstruasi. Selalu jawab dalam Bahasa Indonesia yang jelas, ramah, dan mudah dipahami. "
-    "Jika pertanyaan di luar topik anemia/menstruasi, tolak dengan sopan dan arahkan pengguna "
-    "untuk bertanya seputar anemia atau menstruasi. "
-    "Berikan edukasi umum yang aman dan tidak menggantikan diagnosis dokter. "
-    "Jika ada gejala berat/berbahaya, sarankan segera konsultasi ke tenaga kesehatan."
-)
+SYSTEM_PROMPT = """
+Kamu adalah asisten edukasi kesehatan perempuan.
+
+Topik yang boleh dibahas meliputi:
+- anemia
+- menstruasi
+- kesehatan perempuan
+- kesehatan remaja putri
+- pubertas remaja
+- kesehatan ibu hamil
+- kesehatan ibu dan anak
+- gizi perempuan, remaja, ibu hamil, ibu menyusui, dan anak
+- pencegahan anemia dan edukasi kesehatan terkait perempuan
+
+Definisi penting:
+TTD = Tablet Tambah Darah.
+
+Selalu jawab dalam Bahasa Indonesia yang jelas, ramah, mudah dipahami, dan sesuai usia pengguna bila relevan.
+
+Berikan edukasi kesehatan umum yang aman, berbasis informasi kesehatan dasar, dan tidak menggantikan diagnosis, pemeriksaan, atau saran tenaga kesehatan profesional.
+
+Jika pengguna bertanya di luar topik yang diizinkan, tolak dengan sopan dan arahkan pengguna untuk bertanya seputar anemia, menstruasi, kesehatan perempuan, pubertas remaja, gizi, kesehatan ibu dan anak, atau topik terkait.
+
+Saat menjelaskan:
+- Gunakan bahasa sederhana, praktis, dan tidak menghakimi.
+- Jelaskan istilah medis dengan singkat bila diperlukan.
+- Hindari memberikan diagnosis pasti atau klaim medis berlebihan.
+- Jika terdapat tanda bahaya, gejala berat, kondisi darurat, risiko kehamilan, kekurangan gizi berat, perdarahan berlebihan, pingsan, sesak napas, nyeri berat, atau kondisi yang memerlukan pemeriksaan langsung, sarankan segera konsultasi ke tenaga kesehatan/fasilitas kesehatan.
+
+Fokus utama jawaban adalah edukasi, pencegahan, kebiasaan sehat, gizi, dan pemahaman kesehatan perempuan sepanjang siklus hidup (anak, remaja, dewasa, ibu hamil, dan ibu menyusui).
+"""
 
 
 @dataclass
@@ -141,9 +163,7 @@ def ask_external_ai(prompt: str):
             input=[
                 {
                     "role": "system",
-                    "content": [
-                        {"type": "input_text", "text": ANEMIA_MENSTRUASI_SYSTEM_PROMPT}
-                    ],
+                    "content": [{"type": "input_text", "text": SYSTEM_PROMPT}],
                 },
                 {"role": "user", "content": [{"type": "input_text", "text": prompt}]},
             ],
@@ -189,19 +209,14 @@ def extract_whatsapp_message(payload: dict):
 
 def send_whatsapp_message(to_number: str, message_text: str):
     fonnte_token = os.getenv("FONNTE_TOKEN")
-    
+
     if not fonnte_token:
         logger.error("Kredensial FONNTE_TOKEN belum dikonfigurasi di file .env.")
         return
 
     url = "https://api.fonnte.com/send"
-    headers = {
-        "Authorization": fonnte_token
-    }
-    payload = {
-        "target": to_number,
-        "message": message_text
-    }
+    headers = {"Authorization": fonnte_token}
+    payload = {"target": to_number, "message": message_text}
 
     try:
         response = requests.post(url, data=payload, headers=headers, timeout=10)
@@ -211,33 +226,35 @@ def send_whatsapp_message(to_number: str, message_text: str):
         logger.error(f"Gagal mengirim pesan Fonnte ke {to_number}: {exc}")
 
 
-def send_whatsapp_document(to_number: str, filename: str, content_base64: str, mime_type: str = "text/calendar"):
+def send_whatsapp_document(
+    to_number: str, filename: str, content_base64: str, mime_type: str = "text/calendar"
+):
     fonnte_token = os.getenv("FONNTE_TOKEN")
-    
+
     if not fonnte_token:
         logger.error("Kredensial FONNTE_TOKEN belum dikonfigurasi.")
         return
 
     url = "https://api.fonnte.com/send"
-    headers = {
-        "Authorization": fonnte_token
-    }
-    
+    headers = {"Authorization": fonnte_token}
+
     # Dekode base64 agar menjadi bentuk file biner
     import base64
+
     file_bytes = base64.b64decode(content_base64)
-    
+
     payload = {
         "target": to_number,
     }
-    files = {
-        "file": (filename, file_bytes, mime_type)
-    }
-    
+    files = {"file": (filename, file_bytes, mime_type)}
+
     try:
         # Fonnte bisa menerima dokumen via upload form-data
-        response = requests.post(url, headers=headers, data=payload, files=files, timeout=15)
+        response = requests.post(
+            url, headers=headers, data=payload, files=files, timeout=15
+        )
         response.raise_for_status()
         logger.info(f"Dokumen ICS Fonnte berhasil dikirim ke {to_number}")
     except requests.RequestException as exc:
         logger.error(f"Gagal mengirim dokumen Fonnte ke {to_number}: {exc}")
+

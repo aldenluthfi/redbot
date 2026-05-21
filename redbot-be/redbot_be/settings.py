@@ -131,7 +131,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-nano")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 OPENAI_API_TIMEOUT = int(os.getenv("OPENAI_API_TIMEOUT", "20"))
 
 WHATSAPP_WEBHOOK_VERIFY_TOKEN = os.getenv("WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")

@@ -13,7 +13,9 @@ class PresetInteractionAPITests(APITestCase):
         url = "/api/chatbot/mode/"
         user_id = "user-123"
 
-        response_1 = self.client.post(url, {"mode": "preset_interaction", "user_id": user_id}, format="json")
+        response_1 = self.client.post(
+            url, {"mode": "preset_interaction", "user_id": user_id}, format="json"
+        )
         self.assertEqual(response_1.status_code, status.HTTP_200_OK)
         self.assertEqual(response_1.data["state"], PresetState.AWAITING_MENSTRUATING)
 
@@ -23,7 +25,9 @@ class PresetInteractionAPITests(APITestCase):
             format="json",
         )
         self.assertEqual(response_2.status_code, status.HTTP_200_OK)
-        self.assertEqual(response_2.data["state"], PresetState.AWAITING_LAST_PERIOD_DATE)
+        self.assertEqual(
+            response_2.data["state"], PresetState.AWAITING_LAST_PERIOD_DATE
+        )
 
         response_3 = self.client.post(
             url,
@@ -56,13 +60,17 @@ class PresetInteractionAPITests(APITestCase):
         self.assertTrue(user.has_ttd_pill)
         self.assertEqual(user.preset_state, PresetState.COMPLETED)
 
-        self.assertGreaterEqual(InteractionLog.objects.filter(external_user_id=user_id).count(), 5)
+        self.assertGreaterEqual(
+            InteractionLog.objects.filter(external_user_id=user_id).count(), 5
+        )
 
     def test_preset_flow_returns_validation_error_for_invalid_date(self):
         url = "/api/chatbot/mode/"
         user_id = "user-date-invalid"
 
-        self.client.post(url, {"mode": "preset_interaction", "user_id": user_id}, format="json")
+        self.client.post(
+            url, {"mode": "preset_interaction", "user_id": user_id}, format="json"
+        )
         self.client.post(
             url,
             {"mode": "preset_interaction", "user_id": user_id, "message": "no"},
@@ -81,12 +89,18 @@ class PresetInteractionAPITests(APITestCase):
         url = "/api/chatbot/mode/"
         user_id = "user-invalid-thrice"
 
-        self.client.post(url, {"mode": "preset_interaction", "user_id": user_id}, format="json")
+        self.client.post(
+            url, {"mode": "preset_interaction", "user_id": user_id}, format="json"
+        )
 
         for attempt in range(1, 4):
             response = self.client.post(
                 url,
-                {"mode": "preset_interaction", "user_id": user_id, "message": "invalid-answer"},
+                {
+                    "mode": "preset_interaction",
+                    "user_id": user_id,
+                    "message": "invalid-answer",
+                },
                 format="json",
             )
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -104,7 +118,9 @@ class PresetInteractionAPITests(APITestCase):
         url = "/api/chatbot/mode/"
         user_id = "user-reset-command"
 
-        self.client.post(url, {"mode": "preset_interaction", "user_id": user_id}, format="json")
+        self.client.post(
+            url, {"mode": "preset_interaction", "user_id": user_id}, format="json"
+        )
         self.client.post(
             url,
             {"mode": "preset_interaction", "user_id": user_id, "message": "no"},
@@ -145,7 +161,9 @@ class AIQnAAPITests(APITestCase):
     @patch("chatbot.services.OpenAI")
     def test_ai_qna_success(self, mocked_openai):
         mocked_client = mocked_openai.return_value
-        mocked_client.responses.create.return_value = SimpleNamespace(output_text="Ini jawaban AI")
+        mocked_client.responses.create.return_value = SimpleNamespace(
+            output_text="Ini jawaban AI"
+        )
 
         response = self.client.post(
             "/api/chatbot/mode/",
@@ -160,7 +178,9 @@ class AIQnAAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["response"], "Ini jawaban AI")
         self.assertEqual(
-            InteractionLog.objects.filter(external_user_id="user-ai-1", mode=InteractionLog.MODE_AI_QNA).count(),
+            InteractionLog.objects.filter(
+                external_user_id="user-ai-1", mode=InteractionLog.MODE_AI_QNA
+            ).count(),
             1,
         )
 
@@ -191,7 +211,9 @@ class WhatsAppWebhookAPITests(APITestCase):
     @patch("chatbot.services.OpenAI")
     def test_webhook_post_processes_inbound_message(self, mocked_openai):
         mocked_client = mocked_openai.return_value
-        mocked_client.responses.create.return_value = SimpleNamespace(output_text="Jawaban webhook AI")
+        mocked_client.responses.create.return_value = SimpleNamespace(
+            output_text="Jawaban webhook AI"
+        )
 
         payload = {
             "entry": [
@@ -202,7 +224,9 @@ class WhatsAppWebhookAPITests(APITestCase):
                                 "messages": [
                                     {
                                         "from": "628123456789",
-                                        "text": {"body": "ai: apakah menstruasi normal 5 hari?"},
+                                        "text": {
+                                            "body": "ai: apakah menstruasi normal 5 hari?"
+                                        },
                                     }
                                 ]
                             }
