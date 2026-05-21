@@ -451,13 +451,16 @@ class DownloadICSAPIView(APIView):
     def get(self, request):
         user_id = request.query_params.get("user_id")
         hour = request.query_params.get("hour")
+        is_daily_str = request.query_params.get("is_daily", "true").lower()
+        
+        is_daily = (is_daily_str == "true")
         
         if not user_id or not hour:
             return HttpResponse("Parameter user_id dan hour tidak lengkap.", status=status.HTTP_400_BAD_REQUEST)
             
         try:
             hour = int(hour)
-            ics_payload = generate_ics_payload(user_id, hour)
+            ics_payload = generate_ics_payload(user_id, hour, is_daily)
             
             import base64
             file_bytes = base64.b64decode(ics_payload.content_base64)
