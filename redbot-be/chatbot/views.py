@@ -489,9 +489,18 @@ class WhatsAppWebhookAPIView(APIView):
     def post(self, request):
         sender = request.data.get("sender")
         message_text = request.data.get("message")
+        device = request.data.get("device")
+
+        # 1. Cegah bot membaca dan membalas pesannya sendiri
+        if sender == device:
+            return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         if not sender or not message_text:
              return Response({"status": "ignored"}, status=status.HTTP_200_OK)
+
+        # 2. Hard-filter: Putus rantai infinite loop dari teks error
+        if "Pilihan tidak valid" in message_text or "REDBOT" in message_text:
+            return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         mode, normalized_text = parse_webhook_mode_and_message(message_text)
         user_id = str(sender)
@@ -504,7 +513,10 @@ class WhatsAppWebhookAPIView(APIView):
             chatbot_response = handle_preset_interaction(user_id=user_id, message=normalized_text, endpoint_name=self.endpoint_name)
 
         teks_balasan = chatbot_response.data.get("response") or chatbot_response.data.get("error")
+        
         if teks_balasan:
-            send_whatsapp_message(to_number=user_id, message_text=teks_balasan)
+            # 3. Tembak pesan via Background Thread agar memangkas Latency Webhook!
+            import threading
+            threading.Thread(target=send_whatsapp_message, args=(user_id, teks_balasan)).start()
             
         return Response({"status": "processed"}, status=status.HTTP_200_OK)
