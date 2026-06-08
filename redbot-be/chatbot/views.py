@@ -31,7 +31,18 @@ from .utils import log_interaction
 
 logger = logging.getLogger(__name__)
 
-RESET_COMMANDS = {"reset", "restart", "menu", "kembali", "halo", "hi", "p", "ping", "hai", "mulai"}
+RESET_COMMANDS = {
+    "reset",
+    "restart",
+    "menu",
+    "kembali",
+    "halo",
+    "hi",
+    "p",
+    "ping",
+    "hai",
+    "mulai",
+}
 RESET_HINT_MESSAGE = "Kamu sudah 3x salah input. Untuk kembali ke awal, ketik 'menu'."
 
 
@@ -633,7 +644,7 @@ class WhatsAppWebhookAPIView(APIView):
 
         # --- 1. FITUR LOGGING PESAN MASUK ---
         logger.info(f"[WEBHOOK MASUK] Dari: {sender} | Pesan: {message_text}")
-        
+
         # --- 2. CEGAH INFINITE LOOP (BOT MEMBACA PESANNYA SENDIRI) ---
         if sender == device:
             logger.info("[WEBHOOK] Pesan diabaikan karena berasal dari bot sendiri.")
@@ -644,7 +655,9 @@ class WhatsAppWebhookAPIView(APIView):
 
         # --- 3. HARD-FILTER PESAN ERROR ---
         if "Pilihan tidak valid" in message_text or "REDBOT" in message_text:
-            logger.info("[WEBHOOK] Pesan diabaikan karena terdeteksi sebagai pantulan (loop).")
+            logger.info(
+                "[WEBHOOK] Pesan diabaikan karena terdeteksi sebagai pantulan (loop)."
+            )
             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         mode, normalized_text = parse_webhook_mode_and_message(message_text)
@@ -668,17 +681,6 @@ class WhatsAppWebhookAPIView(APIView):
                 endpoint_name=self.endpoint_name,
             )
 
-<<<<<<< HEAD
-        teks_balasan = chatbot_response.data.get("response") or chatbot_response.data.get("error")
-        
-        if teks_balasan:
-            # --- 4. KIRIM BALASAN VIA THREADING (CEGAH TIMEOUT FONNTE) ---
-            import threading
-            threading.Thread(target=send_whatsapp_message, args=(user_id, teks_balasan)).start()
-            logger.info(f"[WEBHOOK KELUAR] Membalas ke: {user_id}")
-            
-        return Response({"status": "processed"}, status=status.HTTP_200_OK)
-=======
         teks_balasan = chatbot_response.data.get(
             "response"
         ) or chatbot_response.data.get("error")
@@ -686,5 +688,3 @@ class WhatsAppWebhookAPIView(APIView):
             send_whatsapp_message(to_number=user_id, message_text=teks_balasan)
 
         return Response({"status": "processed"}, status=status.HTTP_200_OK)
-
->>>>>>> f39fe1b (refactor: prompt)
