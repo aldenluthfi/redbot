@@ -24,8 +24,8 @@ from .services import (
     parse_ddmmyyyy,
     parse_hour_24,
     parse_webhook_mode_and_message,
-    send_whatsapp_message, 
-    send_whatsapp_document
+    send_whatsapp_message,
+    send_whatsapp_document,
 )
 from .utils import log_interaction
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 RESET_COMMANDS = {"reset", "restart", "menu", "kembali", "halo", "hi", "p", "ping", "hai", "mulai"}
 RESET_HINT_MESSAGE = "Kamu sudah 3x salah input. Untuk kembali ke awal, ketik 'menu'."
+
 
 def reset_preset_user(user: ChatbotUser):
     user.preset_state = PresetState.NOT_STARTED
@@ -46,15 +47,32 @@ def reset_preset_user(user: ChatbotUser):
     user.selected_topic = None
     user.save()
 
+
 def handle_ai_qna(user_id: str, prompt: str, endpoint_name: str):
     user, _ = ChatbotUser.objects.get_or_create(user_id=user_id)
     try:
         answer = ask_external_ai(prompt)
     except ExternalAIServiceError as exc:
-        log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_AI_QNA, endpoint=endpoint_name, user_message=prompt, bot_response=str(exc), status=InteractionLog.STATUS_ERROR)
+        log_interaction(
+            user=user,
+            user_id=user_id,
+            mode=InteractionLog.MODE_AI_QNA,
+            endpoint=endpoint_name,
+            user_message=prompt,
+            bot_response=str(exc),
+            status=InteractionLog.STATUS_ERROR,
+        )
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
-    log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_AI_QNA, endpoint=endpoint_name, user_message=prompt, bot_response=answer, status=InteractionLog.STATUS_SUCCESS)
+    log_interaction(
+        user=user,
+        user_id=user_id,
+        mode=InteractionLog.MODE_AI_QNA,
+        endpoint=endpoint_name,
+        user_message=prompt,
+        bot_response=answer,
+        status=InteractionLog.STATUS_SUCCESS,
+    )
     return Response({"mode": "ai_qna", "response": answer}, status=status.HTTP_200_OK)
 
 
@@ -66,52 +84,56 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Halo!\n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang anemia. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil🤰\n2. Remaja putri👧"
+            "response": "Halo!\n\nAku REDBOT, asisten virtual kamu untuk mencari informasi seputar kesehatan reproduksi.\nREDBOT adalah inovasi teknologi kesehatan dari RED Project Indonesia yang dirancang untuk membantu ibu hamil dan remaja putri mendapatkan informasi kesehatan, khususnya tentang anemia. Di sini, kamu bisa mengakses berbagai fitur sesuai kebutuhanmu.\n\nUntuk remaja putri, tersedia pengingat Tablet Tambah Darah (TTD), kalender menstruasi, serta FAQ untuk mencari informasi kesehatan lainnya. Sedangkan untuk ibu hamil, tersedia FAQ seputar kesehatan dan juga bisa mengajukan pertanyaan, lo!\n\nYuk, kita mulai!\nSebelumnya, siapakah kamu?\n1. Ibu hamil🤰\n2. Remaja putri👧",
         }
 
     # 2. STATE: Memilih Persona
     if user.preset_state == PresetState.AWAITING_PERSONA:
-        if message == '1':
-            user.persona = 'ibu_hamil'
+        if message == "1":
+            user.persona = "ibu_hamil"
             user.preset_state = PresetState.AWAITING_TOPIC
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Halo, Moms!\n\nSelamat menjalani masa kehamilan, ya. Masa ini tentu tidak selalu mudah. Oleh karena itu, aku hadir untuk mendampingi dan membantu menemukan informasi yang Moms butuhkan, mulai dari anemia, Tablet Tambah Darah (TTD), Multiple Micronutrient Supplement (MMS), hingga kesehatan kehamilan lainnya.\n\nHari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya"
+                "response": "Halo, Moms!\n\nSelamat menjalani masa kehamilan, ya. Masa ini tentu tidak selalu mudah. Oleh karena itu, aku hadir untuk mendampingi dan membantu menemukan informasi yang Moms butuhkan, mulai dari anemia, Tablet Tambah Darah (TTD), Multiple Micronutrient Supplement (MMS), hingga kesehatan kehamilan lainnya.\n\nHari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya",
             }
-        elif message == '2':
-            user.persona = 'remaja_putri'
+        elif message == "2":
+            user.persona = "remaja_putri"
             user.preset_state = PresetState.AWAITING_MAIN_MENU
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Hai, Girls! 😆\n\nHari ini mau tanya-tanya tentang kesehatan atau mau diingetin buat minum Tablet Tambah Darah (TTD), nih?\n1. QnA Kesehatan\n2. Reminder Tablet Tambah Darah (TTD)"
+                "response": "Hai, Girls! 😆\n\nHari ini mau tanya-tanya tentang kesehatan atau mau diingetin buat minum Tablet Tambah Darah (TTD), nih?\n1. QnA Kesehatan\n2. Reminder Tablet Tambah Darah (TTD)",
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Silakan balas dengan angka 1 (Ibu hamil🤰) or 2 (Remaja putri👧).")
+            raise InputValidationError(
+                "Pilihan tidak valid. Silakan balas dengan angka 1 (Ibu hamil🤰) or 2 (Remaja putri👧)."
+            )
 
     # 3. STATE: Menu Utama Remaja Putri
     if user.preset_state == PresetState.AWAITING_MAIN_MENU:
-        if message == '1':
+        if message == "1":
             user.preset_state = PresetState.AWAITING_REMATRI_AI_PROMPT
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Mau tanya tentang apa, nih, girls?"
+                "response": "Mau tanya tentang apa, nih, girls?",
             }
-        elif message == '2':
+        elif message == "2":
             user.preset_state = PresetState.AWAITING_MENSTRUATING
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Yay, kamu memilih fitur reminder TTD! 😆\n\nKamu tahu nggak, sih, kalo sering capek, pusing, atau susah fokus bisa jadi salah satu gejala anemia?! 😱\nTapi, jangan khawatir. REDBOT akan mengingatkan kamu secara rutin untuk minum TTD agar terhindar dari anemia!\n\nSebelum pasang pengingat, kamu lagi menstruasi atau nggak, nih?\n1. Lagi menstruasi\n2. Nggak lagi menstruasi"
+                "response": "Yay, kamu memilih fitur reminder TTD! 😆\n\nKamu tahu nggak, sih, kalo sering capek, pusing, atau susah fokus bisa jadi salah satu gejala anemia?! 😱\nTapi, jangan khawatir. REDBOT akan mengingatkan kamu secara rutin untuk minum TTD agar terhindar dari anemia!\n\nSebelum pasang pengingat, kamu lagi menstruasi atau nggak, nih?\n1. Lagi menstruasi\n2. Nggak lagi menstruasi",
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1 atau 2."
+            )
 
     # ==============================================================
     # CABANG FITUR: QnA BERSAMA AI (KHUSUS REMAJA PUTRI)
@@ -125,7 +147,7 @@ def advance_preset_flow(user: ChatbotUser, message: str):
 
         user.preset_state = PresetState.AWAITING_REMATRI_AI_MORE
         user.save()
-        
+
         wording = (
             f"{ai_response}\n\n"
             "---\n"
@@ -133,154 +155,202 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             "1. Ada\n"
             "2. Sudah cukup"
         )
-        return {"mode": "preset_interaction", "state": user.preset_state, "response": wording}
+        return {
+            "mode": "preset_interaction",
+            "state": user.preset_state,
+            "response": wording,
+        }
 
     if user.preset_state == PresetState.AWAITING_REMATRI_AI_MORE:
-        if message == '1':
+        if message == "1":
             user.preset_state = PresetState.AWAITING_REMATRI_AI_PROMPT
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Mau tahu tentang apa lagi, nih?"
+                "response": "Mau tahu tentang apa lagi, nih?",
             }
-        elif message == '2':
+        elif message == "2":
             reset_preset_user(user)
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Terima kasih telah mengakses REDBOT, ya!\n\nSee you, girls! ❤️"
+                "response": "Terima kasih telah mengakses REDBOT, ya!\n\nSee you, girls! ❤️",
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1 atau 2."
+            )
 
     # ==============================================================
     # FLOW TOPIK FAQ (KHUSUS IBU HAMIL)
     # ==============================================================
     if user.preset_state == PresetState.AWAITING_TOPIC:
-        topic_map = {'1': 'anemia', '2': 'ttd', '3': 'umum'}
+        topic_map = {"1": "anemia", "2": "ttd", "3": "umum"}
         if message in topic_map:
             topic_key = topic_map[message]
             topic_data = FAQ_CONTENT.get(topic_key)
             user.selected_topic = topic_key
             user.preset_state = PresetState.AWAITING_FAQ_QUESTION
             user.save()
-            
+
             text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, Moms!\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
-            for i, q_item in enumerate(topic_data['questions'], 1):
+            for i, q_item in enumerate(topic_data["questions"], 1):
                 text_response += f"{i}. {q_item['q']}\n"
-            
-            next_idx = len(topic_data['questions']) + 1
-            text_response += f"{next_idx}. lainnya\n{next_idx + 1}. kembali ke menu topik"
-            
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": text_response}
-            
-        elif message == '4':
+
+            next_idx = len(topic_data["questions"]) + 1
+            text_response += (
+                f"{next_idx}. lainnya\n{next_idx + 1}. kembali ke menu topik"
+            )
+
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": text_response,
+            }
+
+        elif message == "4":
             user.preset_state = PresetState.AWAITING_MANUAL_QUESTION
             user.save()
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Silakan tulis pertanyaannya, Moms!"}
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Silakan tulis pertanyaannya, Moms!",
+            }
         else:
-            raise InputValidationError("Pilihan tidak valid. Silakan ketik angka 1, 2, 3, atau 4.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Silakan ketik angka 1, 2, 3, atau 4."
+            )
 
     if user.preset_state == PresetState.AWAITING_FAQ_QUESTION:
         topic_key = user.selected_topic
         topic_data = FAQ_CONTENT.get(topic_key)
         try:
             q_idx = int(message) - 1
-            total_q = len(topic_data['questions'])
-            
+            total_q = len(topic_data["questions"])
+
             if q_idx == total_q:
                 user.preset_state = PresetState.AWAITING_MANUAL_QUESTION
                 user.save()
-                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Silakan tulis pertanyaannya, Moms!"}
-            
+                return {
+                    "mode": "preset_interaction",
+                    "state": user.preset_state,
+                    "response": "Silakan tulis pertanyaannya, Moms!",
+                }
+
             elif q_idx == total_q + 1:
                 user.preset_state = PresetState.AWAITING_TOPIC
                 user.save()
-                return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya"}
-            
+                return {
+                    "mode": "preset_interaction",
+                    "state": user.preset_state,
+                    "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya",
+                }
+
             if q_idx < 0 or q_idx >= total_q:
                 raise ValueError()
-            
-            answer = topic_data['questions'][q_idx]['a']
+
+            answer = topic_data["questions"][q_idx]["a"]
             user.preset_state = PresetState.AWAITING_ASK_MORE
             user.save()
             return {
-                "mode": "preset_interaction", 
-                "state": user.preset_state, 
-                "response": f"{answer}\n\n---\nGimana, nih, Moms, apakah masih ada pertanyaan lainnya?\n1. Ya\n2. Tidak"
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": f"{answer}\n\n---\nGimana, nih, Moms, apakah masih ada pertanyaan lainnya?\n1. Ya\n2. Tidak",
             }
         except (ValueError, TypeError):
-            raise InputValidationError("Nomor tidak valid. Silakan ketik angka yang sesuai dengan daftar pertanyaan.")
+            raise InputValidationError(
+                "Nomor tidak valid. Silakan ketik angka yang sesuai dengan daftar pertanyaan."
+            )
 
     if user.preset_state == PresetState.AWAITING_ASK_MORE:
-        if message == '1':
+        if message == "1":
             user.preset_state = PresetState.AWAITING_SAME_OR_OTHER_TOPIC
             user.save()
-            topic_title = FAQ_CONTENT.get(user.selected_topic, {}).get("title", "topik ini")
+            topic_title = FAQ_CONTENT.get(user.selected_topic, {}).get(
+                "title", "topik ini"
+            )
             return {
-                "mode": "preset_interaction", 
-                "state": user.preset_state, 
-                "response": f"Apakah pertanyaannya masih seputar {topic_title} atau ingin membahas topik lainnya, Moms?\n1. Masih seputar {topic_title}\n2. Topik lainnya"
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": f"Apakah pertanyaannya masih seputar {topic_title} atau ingin membahas topik lainnya, Moms?\n1. Masih seputar {topic_title}\n2. Topik lainnya",
             }
-        elif message == '2':
+        elif message == "2":
             reset_preset_user(user)
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Terima kasih sudah menggunakan REDBOT, Moms! Semoga informasi yang diberikan dapat membantu, ya. Sehat selalu Moms, baby, dan keluarga. Kalau butuh informasi lagi, aku siap membantu kapan saja.\n\nSampai jumpa lagi!"}
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Terima kasih sudah menggunakan REDBOT, Moms! Semoga informasi yang diberikan dapat membantu, ya. Sehat selalu Moms, baby, dan keluarga. Kalau butuh informasi lagi, aku siap membantu kapan saja.\n\nSampai jumpa lagi!",
+            }
         else:
-            raise InputValidationError("Pilihan tidak valid. Ketik 1 untuk Ya, atau 2 untuk Tidak.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Ketik 1 untuk Ya, atau 2 untuk Tidak."
+            )
 
     if user.preset_state == PresetState.AWAITING_SAME_OR_OTHER_TOPIC:
-        if message == '1':
+        if message == "1":
             topic_key = user.selected_topic
             topic_data = FAQ_CONTENT.get(topic_key)
             user.preset_state = PresetState.AWAITING_FAQ_QUESTION
             user.save()
 
             text_response = f"Yuk, kita cari tahu pertanyaan-pertanyaan yang sering muncul seputar {topic_data['title']}, Moms!\n\nBerikut beberapa pertanyaan yang bisa dipilih:\n"
-            for i, q_item in enumerate(topic_data['questions'], 1):
+            for i, q_item in enumerate(topic_data["questions"], 1):
                 text_response += f"{i}. {q_item['q']}\n"
-            
-            next_idx = len(topic_data['questions']) + 1
-            text_response += f"{next_idx}. lainnya\n{next_idx + 1}. kembali ke menu topik"
 
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": text_response}
-        
-        elif message == '2':
+            next_idx = len(topic_data["questions"]) + 1
+            text_response += (
+                f"{next_idx}. lainnya\n{next_idx + 1}. kembali ke menu topik"
+            )
+
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": text_response,
+            }
+
+        elif message == "2":
             user.preset_state = PresetState.AWAITING_TOPIC
             user.save()
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya"}
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Hari ini mau tahu tentang apa, nih, Moms?\n1. Anemia\n2. Tablet Tambah Darah (TTD)/Multiple Micronutrient Supplement (MMS)\n3. Umum\n4. Lainnya",
+            }
         else:
             raise InputValidationError("Pilihan tidak valid. Ketik 1 atau 2.")
 
     if user.preset_state == PresetState.AWAITING_MANUAL_QUESTION:
         reset_preset_user(user)
         return {
-            "mode": "preset_interaction", 
-            "state": user.preset_state, 
-            "response": "Terima kasih banyak atas pertanyaannya!\n\nPertanyaan tersebut akan aku teruskan untuk dipelajari lebih lanjut, ya. Jawaban akan diberikan dalam kurun waktu maksimal 7 x 24 jam.\n\nMohon ditunggu, Moms!"
+            "mode": "preset_interaction",
+            "state": user.preset_state,
+            "response": "Terima kasih banyak atas pertanyaannya!\n\nPertanyaan tersebut akan aku teruskan untuk dipelajari lebih lanjut, ya. Jawaban akan diberikan dalam kurun waktu maksimal 7 x 24 jam.\n\nMohon ditunggu, Moms!",
         }
 
     # ==============================================================
     # FLOW REMINDER TTD (UNTUK REMAJA PUTRI)
     # ==============================================================
     if user.preset_state == PresetState.AWAITING_MENSTRUATING:
-        if message == '1':
+        if message == "1":
             user.is_currently_menstruating = True
-        elif message == '2':
+        elif message == "2":
             user.is_currently_menstruating = False
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1 atau 2."
+            )
 
         user.preset_state = PresetState.AWAITING_HAS_TTD
         user.save()
         return {
             "mode": "preset_interaction",
             "state": user.preset_state,
-            "response": "Okay, terima kasih atas jawabannya!\n\nApakah kamu sudah punya TTD?\n1. Punya 👍\n2. Nggak punya 🙁"
+            "response": "Okay, terima kasih atas jawabannya!\n\nApakah kamu sudah punya TTD?\n1. Punya 👍\n2. Nggak punya 🙁",
         }
 
     if user.preset_state == PresetState.AWAITING_HAS_TTD:
-        if message == '1':
+        if message == "1":
             user.has_ttd_pill = True
             user.preset_state = PresetState.AWAITING_REMINDER_HOUR
             user.save()
@@ -292,21 +362,27 @@ def advance_preset_flow(user: ChatbotUser, message: str):
                 "2. Jam 4 sore\n"
                 "3. Jam 8 malam"
             )
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": wording}
-        elif message == '2':
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": wording,
+            }
+        elif message == "2":
             user.has_ttd_pill = False
             user.preset_state = PresetState.AWAITING_GET_TTD
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Untuk mendapatkan TTD, kamu bisa minta langsung ke UKS sekolah, ya!\n\nKalau sudah mendapatkan TTD, kamu bisa ketik *Punya TTD* agar kita bisa pasang reminder!"
+                "response": "Untuk mendapatkan TTD, kamu bisa minta langsung ke UKS sekolah, ya!\n\nKalau sudah mendapatkan TTD, kamu bisa ketik *Punya TTD* agar kita bisa pasang reminder!",
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 atau 2.")
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1 atau 2."
+            )
 
     if user.preset_state == PresetState.AWAITING_GET_TTD:
-        if message.lower() == 'punya ttd':
+        if message.lower() == "punya ttd":
             user.has_ttd_pill = True
             user.preset_state = PresetState.AWAITING_REMINDER_HOUR
             user.save()
@@ -318,26 +394,34 @@ def advance_preset_flow(user: ChatbotUser, message: str):
                 "2. Jam 4 sore\n"
                 "3. Jam 8 malam"
             )
-            return {"mode": "preset_interaction", "state": user.preset_state, "response": wording}
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": wording,
+            }
         else:
-            raise InputValidationError("Ketik 'Punya TTD' jika kamu sudah mendapatkan TTD dari UKS sekolah, ya!")
+            raise InputValidationError(
+                "Ketik 'Punya TTD' jika kamu sudah mendapatkan TTD dari UKS sekolah, ya!"
+            )
 
     if user.preset_state == PresetState.AWAITING_REMINDER_HOUR:
-        if message == '1':
+        if message == "1":
             reminder_hour = 13
-        elif message == '2':
+        elif message == "2":
             reminder_hour = 16
-        elif message == '3':
+        elif message == "3":
             reminder_hour = 20
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1, 2, atau 3.")
-            
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1, 2, atau 3."
+            )
+
         user.reminder_hour_24 = reminder_hour
-        user.reminder_start_date = datetime.date.today() # BARU: Mencatat hari pertama
-        
+        user.reminder_start_date = datetime.date.today()  # BARU: Mencatat hari pertama
+
         is_daily_str = str(user.is_currently_menstruating).lower()
         download_link = f"https://redprojectindonesia.my.id/api/chatbot/calendar/?user_id={user.user_id}&hour={reminder_hour}&is_daily={is_daily_str}"
-        
+
         wording = (
             "Reminder kamu berhasil dibuat!\n\n"
             "Silakan klik tautan di bawah ini untuk mengunduh dan menyimpan jadwal minum TTD-nya langsung ke kalender HP kamu:\n"
@@ -346,50 +430,59 @@ def advance_preset_flow(user: ChatbotUser, message: str):
             "Terima kasih sudah menggunakan REDBOT, ya, Girls! See you! ❤️\n\n"
             "Ketik 'menu' untuk kembali ke menu pilihan awal."
         )
-        
-        # Perhatikan: Kita tidak langsung me-reset user jika dia menstruasi, 
+
+        # Perhatikan: Kita tidak langsung me-reset user jika dia menstruasi,
         # karena kita butuh user.reminder_start_date tetap tersimpan.
         user.preset_state = PresetState.NOT_STARTED
         user.save()
-        return {"mode": "preset_interaction", "state": user.preset_state, "response": wording}
+        return {
+            "mode": "preset_interaction",
+            "state": user.preset_state,
+            "response": wording,
+        }
 
     # ==============================================================
     # FLOW BARU: JAWABAN FOLLOW-UP HARI KE-7
     # ==============================================================
     if user.preset_state == PresetState.AWAITING_FOLLOWUP_MENSTRUATING:
-        if message == '1': # Masih Haid
+        if message == "1":  # Masih Haid
             # Berarti lanjut haid, tidak perlu link ICS baru karena HP-nya masih bunyi tiap hari
             user.preset_state = PresetState.NOT_STARTED
             # Kita set ulang hari pertamanya agar 7 hari kemudian ditanya lagi (opsional)
-            user.reminder_start_date = datetime.date.today() 
+            user.reminder_start_date = datetime.date.today()
             user.save()
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Okay, terima kasih atas konfirmasinya!\n\nKan, kamu masih menstruasi, jadi kalender HP kamu akan tetap mengingatkan setiap hari untuk minum TTD, ya!\n\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal."
+                "response": "Okay, terima kasih atas konfirmasinya!\n\nKan, kamu masih menstruasi, jadi kalender HP kamu akan tetap mengingatkan setiap hari untuk minum TTD, ya!\n\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal.",
             }
-        elif message == '2': # Sudah Selesai Haid
+        elif message == "2":  # Sudah Selesai Haid
             user.is_currently_menstruating = False
             user.preset_state = PresetState.NOT_STARTED
             # Selesai haid, tidak usah difollow up 7 hari lagi
             user.reminder_start_date = None
             user.save()
-            
+
             # Buatkan Link Kalender Mingguan Baru
             reminder_hour = user.reminder_hour_24 or 20
             download_link = f"https://redprojectindonesia.my.id/api/chatbot/calendar/?user_id={user.user_id}&hour={reminder_hour}&is_daily=false"
-            
+
             return {
                 "mode": "preset_interaction",
                 "state": user.preset_state,
-                "response": "Okay, terima kasih atas konfirmasinya!\n\nKarena kamu sudah selesai menstruasi, maka aku akan set ulang pengingatnya menjadi seminggu sekali, ya, dimulai dari hari ini!\n\nSilakan klik tautan di bawah ini untuk memperbarui jadwal minum TTD-nya langsung ke kalender HP kamu:\n" + download_link + "\n\nJangan lupa diminum, ya! Aku pantau, lo!\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal."
+                "response": "Okay, terima kasih atas konfirmasinya!\n\nKarena kamu sudah selesai menstruasi, maka aku akan set ulang pengingatnya menjadi seminggu sekali, ya, dimulai dari hari ini!\n\nSilakan klik tautan di bawah ini untuk memperbarui jadwal minum TTD-nya langsung ke kalender HP kamu:\n"
+                + download_link
+                + "\n\nJangan lupa diminum, ya! Aku pantau, lo!\nTerima kasih sudah menggunakan REDBOT, ya, Girls! See you!\n\nKetik 'menu' untuk kembali ke menu pilihan awal.",
             }
         else:
-            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 (Masih haid) atau 2 (Sudah selesai).")
+            raise InputValidationError(
+                "Pilihan tidak valid. Mohon ketik angka 1 (Masih haid) atau 2 (Sudah selesai)."
+            )
 
     # Fallback
     reset_preset_user(user)
     return advance_preset_flow(user, "")
+
 
 def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: str):
     raw_message = (message or "").strip()
@@ -401,7 +494,14 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
         if normalized_message in RESET_COMMANDS:
             reset_preset_user(user)
             response_payload = advance_preset_flow(user, "")
-            log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=response_payload.get("response", ""))
+            log_interaction(
+                user=user,
+                user_id=user_id,
+                mode=InteractionLog.MODE_PRESET,
+                endpoint=endpoint_name,
+                user_message=raw_message,
+                bot_response=response_payload.get("response", ""),
+            )
             return Response(response_payload, status=status.HTTP_200_OK)
 
         try:
@@ -420,12 +520,28 @@ def handle_preset_interaction(user_id: str, message: str | None, endpoint_name: 
             }
             if user.invalid_input_count >= 3:
                 response_payload["hint"] = RESET_HINT_MESSAGE
-                response_payload["error"] = f"{str(exc)}\n\n💡 *Hint:* {RESET_HINT_MESSAGE}"
+                response_payload["error"] = (
+                    f"{str(exc)}\n\n💡 *Hint:* {RESET_HINT_MESSAGE}"
+                )
             interaction_status = InteractionLog.STATUS_ERROR
 
-        log_interaction(user=user, user_id=user_id, mode=InteractionLog.MODE_PRESET, endpoint=endpoint_name, user_message=raw_message, bot_response=response_payload.get("response") or response_payload.get("error", ""), status=interaction_status)
-        http_status = status.HTTP_400_BAD_REQUEST if interaction_status == InteractionLog.STATUS_ERROR else status.HTTP_200_OK
+        log_interaction(
+            user=user,
+            user_id=user_id,
+            mode=InteractionLog.MODE_PRESET,
+            endpoint=endpoint_name,
+            user_message=raw_message,
+            bot_response=response_payload.get("response")
+            or response_payload.get("error", ""),
+            status=interaction_status,
+        )
+        http_status = (
+            status.HTTP_400_BAD_REQUEST
+            if interaction_status == InteractionLog.STATUS_ERROR
+            else status.HTTP_200_OK
+        )
         return Response(response_payload, status=http_status)
+
 
 class ModeDispatchAPIView(APIView):
     authentication_classes = []
@@ -441,9 +557,14 @@ class ModeDispatchAPIView(APIView):
         user_id = serializer.validated_data["user_id"]
         if mode == InteractionLog.MODE_AI_QNA:
             prompt = serializer.validated_data.get("prompt", "")
-            return handle_ai_qna(user_id=user_id, prompt=prompt, endpoint_name=self.endpoint_name)
+            return handle_ai_qna(
+                user_id=user_id, prompt=prompt, endpoint_name=self.endpoint_name
+            )
         message = serializer.validated_data.get("message")
-        return handle_preset_interaction(user_id=user_id, message=message, endpoint_name=self.endpoint_name)
+        return handle_preset_interaction(
+            user_id=user_id, message=message, endpoint_name=self.endpoint_name
+        )
+
 
 class DownloadICSAPIView(APIView):
     authentication_classes = []
@@ -455,24 +576,34 @@ class DownloadICSAPIView(APIView):
         user_id = request.query_params.get("user_id")
         hour = request.query_params.get("hour")
         is_daily_str = request.query_params.get("is_daily", "true").lower()
-        
-        is_daily = (is_daily_str == "true")
-        
+
+        is_daily = is_daily_str == "true"
+
         if not user_id or not hour:
-            return HttpResponse("Parameter user_id dan hour tidak lengkap.", status=status.HTTP_400_BAD_REQUEST)
-            
+            return HttpResponse(
+                "Parameter user_id dan hour tidak lengkap.",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             hour = int(hour)
             ics_payload = generate_ics_payload(user_id, hour, is_daily)
-            
+
             import base64
+
             file_bytes = base64.b64decode(ics_payload.content_base64)
-            
+
             response = HttpResponse(file_bytes, content_type=ics_payload.content_type)
-            response['Content-Disposition'] = f'attachment; filename="{ics_payload.filename}"'
+            response["Content-Disposition"] = (
+                f'attachment; filename="{ics_payload.filename}"'
+            )
             return response
         except Exception as e:
-            return HttpResponse(f"Gagal memproses kalender: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(
+                f"Gagal memproses kalender: {str(e)}",
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
 
 class WhatsAppWebhookAPIView(APIView):
     authentication_classes = []
@@ -485,9 +616,15 @@ class WhatsAppWebhookAPIView(APIView):
         mode = request.query_params.get("hub.mode")
         verify_token = request.query_params.get("hub.verify_token")
         challenge = request.query_params.get("hub.challenge")
-        if mode == "subscribe" and verify_token and verify_token == settings.WHATSAPP_WEBHOOK_VERIFY_TOKEN:
+        if (
+            mode == "subscribe"
+            and verify_token
+            and verify_token == settings.WHATSAPP_WEBHOOK_VERIFY_TOKEN
+        ):
             return HttpResponse(challenge or "", status=status.HTTP_200_OK)
-        return Response({"error": "Webhook verification failed."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"error": "Webhook verification failed."}, status=status.HTTP_403_FORBIDDEN
+        )
 
     def post(self, request):
         sender = request.data.get("sender")
@@ -503,7 +640,7 @@ class WhatsAppWebhookAPIView(APIView):
             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         if not sender or not message_text:
-             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
+            return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         # --- 3. HARD-FILTER PESAN ERROR ---
         if "Pilihan tidak valid" in message_text or "REDBOT" in message_text:
@@ -515,11 +652,23 @@ class WhatsAppWebhookAPIView(APIView):
 
         if mode == InteractionLog.MODE_AI_QNA:
             if not normalized_text:
-                return Response({"error": "AI prompt is empty. Use format: ai: <pertanyaan>"}, status=status.HTTP_400_BAD_REQUEST)
-            chatbot_response = handle_ai_qna(user_id=user_id, prompt=normalized_text, endpoint_name=self.endpoint_name)
+                return Response(
+                    {"error": "AI prompt is empty. Use format: ai: <pertanyaan>"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            chatbot_response = handle_ai_qna(
+                user_id=user_id,
+                prompt=normalized_text,
+                endpoint_name=self.endpoint_name,
+            )
         else:
-            chatbot_response = handle_preset_interaction(user_id=user_id, message=normalized_text, endpoint_name=self.endpoint_name)
+            chatbot_response = handle_preset_interaction(
+                user_id=user_id,
+                message=normalized_text,
+                endpoint_name=self.endpoint_name,
+            )
 
+<<<<<<< HEAD
         teks_balasan = chatbot_response.data.get("response") or chatbot_response.data.get("error")
         
         if teks_balasan:
@@ -529,3 +678,13 @@ class WhatsAppWebhookAPIView(APIView):
             logger.info(f"[WEBHOOK KELUAR] Membalas ke: {user_id}")
             
         return Response({"status": "processed"}, status=status.HTTP_200_OK)
+=======
+        teks_balasan = chatbot_response.data.get(
+            "response"
+        ) or chatbot_response.data.get("error")
+        if teks_balasan:
+            send_whatsapp_message(to_number=user_id, message_text=teks_balasan)
+
+        return Response({"status": "processed"}, status=status.HTTP_200_OK)
+
+>>>>>>> f39fe1b (refactor: prompt)

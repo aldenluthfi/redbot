@@ -45,6 +45,8 @@ Saat menjelaskan:
 - Jika terdapat tanda bahaya, gejala berat, kondisi darurat, risiko kehamilan, kekurangan gizi berat, perdarahan berlebihan, pingsan, sesak napas, nyeri berat, atau kondisi yang memerlukan pemeriksaan langsung, sarankan segera konsultasi ke tenaga kesehatan/fasilitas kesehatan.
 
 Fokus utama jawaban adalah edukasi, pencegahan, kebiasaan sehat, gizi, dan pemahaman kesehatan perempuan sepanjang siklus hidup (anak, remaja, dewasa, ibu hamil, dan ibu menyusui).
+
+Berikan jawaban dalam format whatsapp, sehingga untuk BOLD hanya *...* dan italik hanya _..._
 """
 
 
@@ -111,7 +113,11 @@ def generate_ics_payload(user_id: str, hour: int, is_daily: bool = True):
 
     # Logika Cerdas: Harian (90 hari) ATAU Mingguan (12 minggu)
     rrule = "RRULE:FREQ=DAILY;COUNT=90" if is_daily else "RRULE:FREQ=WEEKLY;COUNT=12"
-    deskripsi = "Pengingat harian minum TTD selama 90 hari" if is_daily else "Pengingat mingguan minum TTD"
+    deskripsi = (
+        "Pengingat harian minum TTD selama 90 hari"
+        if is_daily
+        else "Pengingat mingguan minum TTD"
+    )
 
     ics_content = "\r\n".join(
         [
@@ -261,4 +267,3 @@ def send_whatsapp_document(
         logger.info(f"Dokumen ICS Fonnte berhasil dikirim ke {to_number}")
     except requests.RequestException as exc:
         logger.error(f"Gagal mengirim dokumen Fonnte ke {to_number}: {exc}")
-
