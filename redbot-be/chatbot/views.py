@@ -387,6 +387,41 @@ def advance_preset_flow(user: ChatbotUser, message: str):
         else:
             raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 (Masih haid) atau 2 (Sudah selesai).")
 
+    # ==============================================================
+    # FLOW BARU: KONFIRMASI MINUM TTD HARIAN/MINGGUAN
+    # ==============================================================
+    if user.preset_state == PresetState.AWAITING_TTD_CONFIRMATION:
+        from .models import TTDComplianceLog
+        import datetime
+        
+        # Cari log hari ini yang masih pending untuk user ini
+        log_entry = TTDComplianceLog.objects.filter(user=user, date=datetime.date.today()).last()
+
+        if message == "1":
+            if log_entry:
+                log_entry.is_taken = True
+                log_entry.save()
+            user.preset_state = PresetState.NOT_STARTED
+            user.save()
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Hebat banget! Pertahankan terus ya kebiasaan sehatnya! ❤️"
+            }
+        elif message == "2":
+            if log_entry:
+                log_entry.is_taken = False
+                log_entry.save()
+            user.preset_state = PresetState.NOT_STARTED
+            user.save()
+            return {
+                "mode": "preset_interaction",
+                "state": user.preset_state,
+                "response": "Jangan lupa segera diminum ya setelah makan! Supaya kamu tetap sehat dan bebas dari anemia. Semangat! 💪"
+            }
+        else:
+            raise InputValidationError("Pilihan tidak valid. Mohon ketik angka 1 (Sudah) atau 2 (Belum).")
+
     # Fallback
     reset_preset_user(user)
     return advance_preset_flow(user, "")

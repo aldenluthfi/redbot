@@ -24,6 +24,8 @@ class PresetState(models.TextChoices):
     
     # BARU: State untuk Follow up hari ke-7
     AWAITING_FOLLOWUP_MENSTRUATING = "awaiting_followup_menstruating", "Awaiting Follow Up Menstruating"
+    AWAITING_TTD_CONFIRMATION = "awaiting_ttd_confirmation", "Awaiting TTD Confirmation"
+
 
     COMPLETED = "completed", "Completed"
     CALENDAR_AWAITING_LAST_PERIOD = "calendar_awaiting_last_period", "Calendar Awaiting Last Period Date"
@@ -94,3 +96,12 @@ class InteractionLog(models.Model):
 
     def __str__(self):
         return f"{self.external_user_id} - {self.mode} - {self.status}"
+
+class TTDComplianceLog(models.Model):
+    user = models.ForeignKey(ChatbotUser, on_delete=models.CASCADE, related_name="ttd_logs")
+    date = models.DateField(auto_now_add=True)
+    is_taken = models.BooleanField(null=True, blank=True) # Null=Belum jawab, True=Sudah, False=Belum
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.user_id} - {self.date} - {'Sudah' if self.is_taken else 'Belum' if self.is_taken is False else 'Pending'}"
