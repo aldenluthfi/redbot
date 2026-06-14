@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 import datetime
 import logging
 
-from .models import ChatbotUser, InteractionLog, PresetState
+from .models import ChatbotUser, InteractionLog, PresetState, TTDComplianceLog
 from .serializers import ModeDispatchSerializer, WhatsAppWebhookPayloadSerializer
 from .faq_data import FAQ_CONTENT
 from .services import (
@@ -494,8 +494,6 @@ def advance_preset_flow(user: ChatbotUser, message: str):
     # FLOW BARU: KONFIRMASI MINUM TTD HARIAN/MINGGUAN
     # ==============================================================
     if user.preset_state == PresetState.AWAITING_TTD_CONFIRMATION:
-        from .models import TTDComplianceLog
-        import datetime
         
         # Cari log hari ini yang masih pending untuk user ini
         log_entry = TTDComplianceLog.objects.filter(user=user, date=datetime.date.today()).last()
@@ -677,22 +675,21 @@ class WhatsAppWebhookAPIView(APIView):
         message_text = request.data.get("message")
         device = request.data.get("device")
 
-        # --- 1. FITUR LOGGING PESAN MASUK ---
         logger.info(f"[WEBHOOK MASUK] Dari: {sender} | Pesan: {message_text}")
 
-        # --- 2. CEGAH INFINITE LOOP (BOT MEMBACA PESANNYA SENDIRI) ---
         if sender == device:
-            logger.info("[WEBHOOK] Pesan diabaikan karena berasal dari bot sendiri.")
             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         if not sender or not message_text:
             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
-        # --- 3. HARD-FILTER PESAN ERROR ---
-        if "Pilihan tidak valid" in message_text or "REDBOT" in message_text:
-            logger.info(
-                "[WEBHOOK] Pesan diabaikan karena terdeteksi sebagai pantulan (loop)."
-            )
+        bot_signatures = [
+            "Pilihan tidak valid", "REDBOT", "Hai, Girls!", 
+            "Halo Ibu!", "Yuk, kita mulai!", "Untuk remaja putri,", 
+            "Hari ini mau tanya-tanya", "Silakan ketik angka"
+        ]
+        
+        if any(sig in message_text for sig in bot_signatures):
             return Response({"status": "ignored"}, status=status.HTTP_200_OK)
 
         mode, normalized_text = parse_webhook_mode_and_message(message_text)
@@ -705,21 +702,17 @@ class WhatsAppWebhookAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             chatbot_response = handle_ai_qna(
-                user_id=user_id,
-                prompt=normalized_text,
-                endpoint_name=self.endpoint_name,
+                user_id=user_id, prompt=normalized_text, endpoint_name=self.endpoint_name
             )
         else:
             chatbot_response = handle_preset_interaction(
-                user_id=user_id,
-                message=normalized_text,
-                endpoint_name=self.endpoint_name,
+                user_id=user_id, message=normalized_text, endpoint_name=self.endpoint_name
             )
 
-        teks_balasan = chatbot_response.data.get(
-            "response"
-        ) or chatbot_response.data.get("error")
+        teks_balasan = chatbot_response.data.get("response") or chatbot_response.data.get("error")
+        
         if teks_balasan:
-            send_whatsapp_message(to_number=user_id, message_text=teks_balasan)
+            import threading
+            threading.Thread(target=send_whatsapp_message, args=(user_id, teks_balasan)).start()
 
         return Response({"status": "processed"}, status=status.HTTP_200_OK)
